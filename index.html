@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CAFm — Central Animal Facility Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dexie/4.0.8/dexie.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="data.js" defer></script>
+  <script src="sheets-sync.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer"></div>
+
+  <!-- ===================== ADMIN SETUP PAGE ===================== -->
+  <div id="adminSetupPage" class="login-container" style="display:none;">
+    <div class="login-box">
+      <h1 class="title">
+        <span class="title-brand">CAFm</span>
+        <span class="title-sub">First-time Admin Setup</span>
+      </h1>
+      <form id="adminSetupForm">
+        <div class="form-group">
+          <label for="adminEmail"><i class="fa-solid fa-envelope"></i> Admin Email</label>
+          <input type="email" id="adminEmail" name="adminEmail" placeholder="admin@example.com" required />
+        </div>
+        <div class="form-group">
+          <label for="adminName"><i class="fa-solid fa-user"></i> Admin Name</label>
+          <input type="text" id="adminName" name="adminName" placeholder="Admin name" required />
+        </div>
+        <div class="form-group">
+          <label for="adminPassword"><i class="fa-solid fa-lock"></i> Password</label>
+          <input type="password" id="adminPassword" name="adminPassword" placeholder="Enter password" required />
+        </div>
+        <div class="form-group">
+          <label for="adminPasswordConfirm"><i class="fa-solid fa-lock"></i> Confirm Password</label>
+          <input type="password" id="adminPasswordConfirm" name="adminPasswordConfirm" placeholder="Confirm password" required />
+        </div>
+        <button type="submit" class="btn"><i class="fa-solid fa-user-shield"></i> Create Admin Account</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== SIGNUP PAGE ===================== -->
+  <div id="signupPage" class="login-container" style="display:none;">
+    <div class="login-box">
+      <h1 class="title">
+        <span class="title-brand">CAFm</span>
+        <span class="title-sub">Request Access</span>
+      </h1>
+      <form id="signupForm">
+        <div class="form-group">
+          <label for="signupEmail"><i class="fa-solid fa-envelope"></i> Email</label>
+          <input type="email" id="signupEmail" name="signupEmail" placeholder="you@example.com" required />
+        </div>
+        <div class="form-group">
+          <label for="signupName"><i class="fa-solid fa-user"></i> Full Name</label>
+          <input type="text" id="signupName" name="signupName" placeholder="Your full name" required />
+        </div>
+        <div class="form-group">
+          <label for="signupRole"><i class="fa-solid fa-user-tag"></i> Role</label>
+          <select id="signupRole" name="signupRole" required>
+            <option value="">Select Role</option>
+            <option value="pi">Principal Investigator (PI)</option>
+            <option value="student">Student</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="signupPassword"><i class="fa-solid fa-lock"></i> Password</label>
+          <input type="password" id="signupPassword" name="signupPassword" placeholder="Enter password" required />
+        </div>
+        <div class="form-group">
+          <label for="signupPasswordConfirm"><i class="fa-solid fa-lock"></i> Confirm Password</label>
+          <input type="password" id="signupPasswordConfirm" name="signupPasswordConfirm" placeholder="Confirm password" required />
+        </div>
+        <button type="submit" class="btn"><i class="fa-solid fa-user-plus"></i> Send Request</button>
+      </form>
+      <p style="margin-top: 14px; text-align: center; color: var(--text-muted);">
+        Already have an account? <a href="#" id="backToLoginLink">Login</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- ===================== LOGIN PAGE ===================== -->
+  <div id="loginPage" class="login-container">
+    <div class="login-box">
+      <h1 class="title">
+        <span class="title-brand">CAFm</span>
+        <span class="title-sub">Central Animal Facility Manager</span>
+      </h1>
+      <img src="assets/niper_logo.png" alt="NIPER Logo" class="login-logo" />
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="role"><i class="fa-solid fa-user-shield"></i> Role</label>
+          <select id="role" name="role" required>
+            <option value="">Select Role</option>
+            <option value="admin">Admin</option>
+            <option value="pi">Principal Investigator (PI)</option>
+            <option value="student">Student</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="username"><i class="fa-solid fa-envelope"></i> Email</label>
+          <input type="email" id="username" name="username" placeholder="Enter email" required />
+        </div>
+        <div class="form-group">
+          <label for="password"><i class="fa-solid fa-lock"></i> Password</label>
+          <input type="password" id="password" name="password" placeholder="Enter password" required />
+        </div>
+        <button type="submit" class="btn">
+          <i class="fa-solid fa-right-to-bracket"></i> Sign In
+        </button>
+      </form>
+      <p style="margin-top: 12px; text-align: center; color: var(--text-muted);">
+        New user? <a href="#" id="showSignupLink">Create an account</a>
+      </p>
+
+    </div>
+  </div>
+
+  <!-- ===================== DASHBOARD ===================== -->
+  <div id="dashboard" class="dashboard">
+
+    <nav class="navbar">
+      <h1 class="title"><span class="title-brand">CAFm</span></h1>
+      <div class="user-info">
+        <div class="user-badge">
+          <i class="fa-solid fa-circle-user"></i>
+          <span id="userDisplay"></span>
+        </div>
+
+        <button class="logout-btn" onclick="refreshData()">
+          <i class="fa-solid fa-arrows-rotate"></i> Refresh
+        </button>
+        <button class="logout-btn" onclick="logout()">
+          <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </button>
+      </div>
+    </nav>
+
+    <div class="main-content">
+
+      <aside class="sidebar">
+        <div class="sidebar-section-label">Navigation</div>
+        <div class="sidebar-item active" onclick="showTab('overview', this)">
+          <i class="fa-solid fa-gauge-high"></i> Overview
+        </div>
+        <div class="sidebar-item" onclick="showTab('tasks', this)">
+          <i class="fa-solid fa-list-check"></i> To-Do Tasks
+        </div>
+        <div class="sidebar-item" onclick="showTab('animals', this)">
+          <i class="fa-solid fa-paw"></i> Animal Details
+        </div>
+        <div class="sidebar-item" onclick="showTab('breeding', this)">
+          <i class="fa-solid fa-dna"></i> Breeding Strategy
+        </div>
+        <div class="sidebar-item" onclick="showTab('reports', this)">
+          <i class="fa-solid fa-file-shield"></i> Ethical Approvals
+        </div>
+        <div id="userMgmtSidebarItem" class="sidebar-item" style="display:none;" onclick="showTab('userManagement', this)">
+          <i class="fa-solid fa-users-cog"></i> User Management
+        </div>
+        <div class="sidebar-item" onclick="showTab('copyright', this)">
+          <i class="fa-solid fa-copyright"></i> Contact
+        </div>
+      </aside>
+
+      <main class="content">
+
+        <!-- Overview Tab -->
+        <div id="overview" class="tab-content active">
+          <div class="tab-header">
+            <h2><i class="fa-solid fa-gauge-high"></i> Overview Dashboard</h2>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-card-icon"><i class="fa-solid fa-diagram-project"></i></div>
+              <h3>Total Projects</h3>
+              <div class="number" id="totalProjects">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-icon"><i class="fa-solid fa-microscope"></i></div>
+              <h3>Animals Assigned</h3>
+              <div class="number" id="animalsAssigned">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-icon"><i class="fa-solid fa-vial"></i></div>
+              <h3>Used Animals</h3>
+              <div class="number" id="usedAnimals">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-icon"><i class="fa-solid fa-check-double"></i></div>
+              <h3>Completed Animals</h3>
+              <div class="number" id="completedAnimals">0</div>
+            </div>
+          </div>
+
+          <div class="section-card">
+            <div class="section-card-header">
+              <i class="fa-solid fa-table-list"></i> Project Overview
+            </div>
+            <div class="table-container">
+              <table id="projectOverviewTable">
+                <thead>
+                  <tr>
+                    <th>Project ID</th>
+                    <th>Project Name</th>
+                    <th>PI</th>
+                    <th>Students</th>
+                    <th>Animals Assigned</th>
+                    <th>Animals in Use/Used</th>
+                    <th>Status</th>
+                  </tr>
+                  <tr class="filter-row">
+                    <th><input class="column-filter" data-col-index="0" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="1" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="2" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="3" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="4" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="5" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="6" type="text" placeholder="Filter" /></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="table-actions">
+              <button class="btn-small" onclick="downloadCsv('projects')"><i class="fa-solid fa-download"></i> Download CSV</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tasks Tab -->
+        <div id="tasks" class="tab-content">
+          <div class="tab-header">
+            <h2><i class="fa-solid fa-list-check"></i> To-Do Tasks</h2>
+            <button class="btn-add" onclick="openTaskModal()">
+              <i class="fa-solid fa-plus"></i> Add New Task
+            </button>
+          </div>
+          <div class="section-card">
+            <div class="table-container">
+              <table id="tasksTable">
+                <thead>
+                  <tr>
+                    <th>Task</th>
+                    <th>Type</th>
+                    <th>Priority</th>
+                    <th>Assigned To</th>
+                    <th>Due Date</th>
+                    <th>Status</th>
+                    <th>Last Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                  <tr class="filter-row">
+                    <th><input class="column-filter" data-col-index="0" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="1" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="2" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="3" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="4" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="5" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="6" type="text" placeholder="Filter" /></th>
+                    <th>---</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="table-actions">
+              <button class="btn-small" onclick="downloadCsv('tasks')"><i class="fa-solid fa-download"></i> Download CSV</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Animals Tab -->
+        <div id="animals" class="tab-content">
+          <div class="tab-header">
+            <h2><i class="fa-solid fa-paw"></i> Animal Details</h2>
+            <button class="btn-add" onclick="openAnimalModal()">
+              <i class="fa-solid fa-plus"></i> Add New Animal
+            </button>
+          </div>
+          <div class="section-card">
+            <div class="table-container">
+              <table id="animalsTable">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Species</th>
+                    <th>Age (wks)</th>
+                    <th>Gender</th>
+                    <th>Project</th>
+                    <th>Cage ID</th>
+                    <th>Category</th>
+                    <th>Procurement</th>
+                    <th>Experiment Date</th>
+                    <th>Status</th>
+                    <th>Details</th>
+                    <th>Last Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                  <tr class="filter-row">
+                    <th><input class="column-filter" data-col-index="0" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="1" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="2" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="3" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="4" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="5" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="6" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="7" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="8" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="9" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="10" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="11" type="text" placeholder="Filter" /></th>
+                    <th>---</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="table-actions">
+              <button class="btn-small" onclick="downloadCsv('animals')"><i class="fa-solid fa-download"></i> Download CSV</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Breeding Tab -->
+        <div id="breeding" class="tab-content">
+          <div class="tab-header">
+            <h2><i class="fa-solid fa-dna"></i> Breeding Strategy</h2>
+            <button class="btn-add" onclick="openBreedingModal()">
+              <i class="fa-solid fa-plus"></i> Add Breeding Pair
+            </button>
+          </div>
+          <div class="section-card">
+            <div class="table-container">
+              <table id="breedingTable">
+                <thead>
+                  <tr>
+                    <th>Pair ID</th>
+                    <th>Species</th>
+                    <th>Male ID</th>
+                    <th>Female ID</th>
+                    <th>Cage ID</th>
+                    <th>Start Date</th>
+                    <th>Expected Litter</th>
+                    <th>Status</th>
+                    <th>Last Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                  <tr class="filter-row">
+                    <th><input class="column-filter" data-col-index="0" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="1" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="2" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="3" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="4" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="5" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="6" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="7" type="text" placeholder="Filter" /></th>
+                    <th>---</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="table-actions">
+              <button class="btn-small" onclick="downloadCsv('breeding')"><i class="fa-solid fa-download"></i> Download CSV</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reports Tab -->
+        <div id="reports" class="tab-content">
+          <div class="tab-header">
+            <h2><i class="fa-solid fa-file-shield"></i> Ethical Approvals</h2>
+            <button class="btn-add" onclick="openReportModal()">
+              <i class="fa-solid fa-upload"></i> Upload Approval
+            </button>
+          </div>
+          <div class="section-card">
+            <div class="table-container">
+              <table id="reportsTable">
+                <thead>
+                  <tr>
+                    <th>Document Type</th>
+                    <th>Project</th>
+                    <th>Approval No.</th>
+                    <th>Date of Approval</th>
+                    <th>Valid Until</th>
+                    <th>Status</th>
+                    <th>Uploaded At</th>
+                  </tr>
+                  <tr class="filter-row">
+                    <th><input class="column-filter" data-col-index="0" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="1" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="2" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="3" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="4" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="5" type="text" placeholder="Filter" /></th>
+                    <th><input class="column-filter" data-col-index="6" type="text" placeholder="Filter" /></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+
+        <div id="userManagement" class="tab-content">
+          <div class="tab-header">
+            <h2><i class="fa-solid fa-users-cog"></i> User Management</h2>
+          </div>
+          <div class="section-card">
+            <div class="table-container">
+              <table id="userManagementTable">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Requested At</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact Tab -->
+        <div id="copyright" class="tab-content">
+          <div class="tab-header">
+            <h2><i class="fa-solid fa-copyright"></i> Contact</h2>
+          </div>
+          <div class="section-card">
+            <div class="content-block">
+              <h3>Contact</h3>
+              <p>PD Dr. Ujjwal Mukund Mahajan</p>
+              <p>Associate Professor</p>
+              <p>National Institute of Pharmaceutical Education and Research (NIPER)</p>
+              <p>Department of Pharmacology and Toxicology</p>
+              <p>Sector 67 | SAS Nagar | 160062 Punjab</p>
+              <p><a href="mailto:umahajan@niper.ac.in">umahajan@niper.ac.in</a></p>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ===================== MODALS ===================== -->
+
+  <!-- Task Modal -->
+  <div id="taskModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-list-check"></i> Add New Task</h3>
+        <button class="close-btn" onclick="closeModal('taskModal')" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="taskForm">
+          <div class="form-group">
+            <label>Task Description</label>
+            <input type="text" name="task" placeholder="Describe the task…" required />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Type</label>
+              <select name="type" required>
+                <option>Maintenance</option>
+                <option>Bedding Change</option>
+                <option>Feeding</option>
+                <option>Health Check</option>
+                <option>Cleaning</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Priority</label>
+              <select name="priority" required>
+                <option>Low</option>
+                <option>Medium</option>
+                <option>High</option>
+                <option>Urgent</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Assigned To</label>
+            <input type="text" name="assignedTo" placeholder="Name or team" required />
+          </div>
+          <div class="form-group">
+            <label>Due Date</label>
+            <input type="date" name="dueDate" required />
+          </div>
+          <button type="submit" class="btn">
+            <i class="fa-solid fa-floppy-disk"></i> Save Task
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Animal Modal (Add & Edit) -->
+  <div id="animalModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="animalModalTitle"><i class="fa-solid fa-paw"></i> Add New Animal</h3>
+        <button class="close-btn" onclick="closeAnimalModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="animalForm">
+          <input type="hidden" name="id" id="animalIdField" />
+          <input type="hidden" name="createdAt" id="animalCreatedAt" />
+          <div class="form-row">
+            <div class="form-group">
+              <label>Species</label>
+              <select name="species" required>
+                <option>Rat</option>
+                <option>Mouse</option>
+                <option>Guinea Pig</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Age (weeks)</label>
+              <input type="number" name="age" min="0" placeholder="e.g. 8" required />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Gender</label>
+              <select name="gender" required>
+                <option>Male</option>
+                <option>Female</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Project</label>
+              <select name="project" id="animalProjectSelect" required>
+                <option>Project A</option>
+                <option>Project B</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Cage ID</label>
+              <input type="text" name="cageId" placeholder="e.g. C-101" />
+            </div>
+            <div class="form-group">
+              <label>Category</label>
+              <select name="category" id="animalCategory" onchange="toggleAnimalCategory()" required>
+                <option>Standard</option>
+                <option>Litters</option>
+              </select>
+            </div>
+          </div>
+          <div id="littersDetails" class="form-group" style="display:none;">
+            <label>Genotype Verified</label>
+            <select name="genotypeVerified" id="genotypeVerified" onchange="handleGenotypeVerified()">
+              <option value="">Select</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Procurement Date</label>
+              <input type="date" name="procurementDate" />
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select name="status" id="animalStatus" required onchange="toggleCompletionDetails()">
+                <option>Acclimatization</option>
+                <option>In Experiment</option>
+                <option>Breeding</option>
+                <option>Terminated</option>
+                <option>Completed</option>
+              </select>
+            </div>
+          </div>
+          <div id="experimentDateSection" class="form-group" style="display:none;">
+            <label>Experiment Start Date</label>
+            <input type="date" name="experimentDate" />
+          </div>
+          <div id="terminationDetails" class="form-group" style="display:none;">
+            <label>Termination Reason</label>
+            <input type="text" name="terminationReason" placeholder="Reason for termination" />
+          </div>
+          <div id="completionDetails" style="display:none;">
+            <div class="checkbox-group">
+              <label><input type="checkbox" name="bloodCollected" /> Blood Collected</label>
+              <label><input type="checkbox" name="tissueCollected" /> Tissue Collected</label>
+              <label><input type="checkbox" name="histopathology" /> Histopathology</label>
+              <label><input type="checkbox" name="biochemicalData" /> Biochemical Data</label>
+              <label><input type="checkbox" name="necropsyReport" /> Animal Necropsy Report</label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Details / Notes</label>
+            <input type="text" name="details" placeholder="e.g. Baseline recorded, CCI model" />
+          </div>
+          <button type="submit" class="btn" id="animalSubmitBtn">
+            <i class="fa-solid fa-floppy-disk"></i> Save Animal
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Breeding Modal -->
+  <div id="breedingModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-dna"></i> Add Breeding Pair</h3>
+        <button class="close-btn" onclick="closeModal('breedingModal')" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="breedingForm">
+          <div class="form-group">
+            <label>Species</label>
+            <select name="species" required>
+              <option>Rat</option>
+              <option>Mouse</option>
+              <option>Guinea Pig</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Male Animal</label>
+              <select id="breedingMaleSelect" name="male" onchange="syncBreedingSpecies()" required>
+                <option value="">Select male animal</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Female Animal</label>
+              <select id="breedingFemaleSelect" name="female" onchange="syncBreedingSpecies()" required>
+                <option value="">Select female animal</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Cage ID</label>
+              <input type="text" name="cageId" placeholder="e.g. C-101" />
+            </div>
+            <div class="form-group">
+              <label>Start Date</label>
+              <input type="date" name="startDate" required />
+            </div>
+            <div class="form-group">
+              <label>Expected Litter Date</label>
+              <input type="date" name="expected" required />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Litter Size</label>
+              <input type="number" name="litterSize" min="0" placeholder="e.g. 8" />
+            </div>
+          </div>
+          <button type="submit" class="btn">
+            <i class="fa-solid fa-floppy-disk"></i> Save Breeding Pair
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Modal -->
+  <div id="reportModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-file-shield"></i> Upload Report / Approval</h3>
+        <button class="close-btn" onclick="closeModal('reportModal')" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="reportForm">
+          <div class="form-group">
+            <label>Document Type</label>
+            <select name="type" required>
+              <option>Ethical Approval</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Project</label>
+              <select id="reportProjectSelect" name="project" required>
+                <option value="">Select Project</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Approval Number</label>
+              <input type="text" name="approval" placeholder="e.g. CPCSEA/2025/001" required />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Date of Approval</label>
+              <input type="date" name="dateOfApproval" required />
+            </div>
+            <div class="form-group">
+              <label>Valid Until</label>
+              <input type="date" name="validUntil" required />
+            </div>
+          </div>
+          <button type="submit" class="btn">
+            <i class="fa-solid fa-upload"></i> Upload Document
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Project Modal (Add & Edit) -->
+  <div id="projectModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="projectModalTitle"><i class="fa-solid fa-diagram-project"></i> Add New Project</h3>
+        <button class="close-btn" onclick="closeProjectModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="projectForm">
+          <input type="hidden" name="id" id="projectIdField" />
+          <input type="hidden" name="createdAt" id="projectCreatedAt" />
+          <div class="form-group">
+            <label>Project Title</label>
+            <input type="text" name="name" placeholder="Enter project title" required />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Principal Investigator</label>
+              <input type="text" name="pi" placeholder="e.g. Dr. Smith" required />
+            </div>
+            <div class="form-group">
+              <label>Students (comma-separated)</label>
+              <input type="text" name="students" placeholder="e.g. John, Jane" required />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Start Date</label>
+              <input type="date" name="startDate" required />
+            </div>
+            <div class="form-group">
+              <label>Duration (months)</label>
+              <input type="number" name="duration" min="1" placeholder="e.g. 12" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select name="status">
+              <option value="Active">Active</option>
+              <option value="Completed">Completed</option>
+              <option value="On Hold">On Hold</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea name="description" rows="3" placeholder="Brief project description…"></textarea>
+          </div>
+          <button type="submit" class="btn" id="projectSubmitBtn">
+            <i class="fa-solid fa-floppy-disk"></i> Save Project
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Breeding Detail Modal -->
+  <div id="breedingDetailModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-dna"></i> Breeding Pair Details</h3>
+        <button class="close-btn" onclick="closeModal('breedingDetailModal')" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="breedingDetailContent" class="detail-grid"></div>
+        <div class="form-group" style="margin-top:16px;">
+          <label>Update Status</label>
+          <select id="breedingStatusUpdate" onchange="toggleBreedingCompletionFields()">
+            <option value="Active">Active</option>
+            <option value="Completed">Completed</option>
+            <option value="Failed">Failed</option>
+          </select>
+        </div>
+        <div id="breedingCompletionFields" style="display:none;">
+          <div class="form-group">
+            <label>Litter Size</label>
+            <input type="number" id="breedingLitterSize" min="0" placeholder="Number of pups" />
+          </div>
+          <div class="form-group">
+            <label>Litter IDs</label>
+            <input type="text" id="breedingLitterIds" placeholder="Comma-separated IDs" />
+            <small>These will be added automatically to Animal Details as category Litters.</small>
+          </div>
+        </div>
+        <button id="breedingSaveStatusBtn" class="btn" onclick="saveBreedingStatus()">
+          <i class="fa-solid fa-floppy-disk"></i> Update Status
+        </button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -1,10 +1,15 @@
 // =============================================================
-// app.js — CAFm  |  IndexedDB (Dexie) + Google Sheets sync
+// app.js — CAFm  |  IndexedDB (Dexie) + SQL sync
 // =============================================================
+
+console.log('App.js loaded');
 
 // ── Global state ──────────────────────────────────────────────
 let currentUser = null;
+let currentUserName = null;
 let currentRole = null;
+let authToken = null;
+const AUTH_TOKEN_KEY = 'cafmAuthToken';
 
 // ── Dexie DB ──────────────────────────────────────────────────
 const db = new Dexie('animal_pwa');
@@ -23,7 +28,7 @@ db.version(2).stores({
   breeding: 'id,species,male,female,startDate,expected,status',
   reports:  '++id,type,project,approval,validUntil,status',
   meta:     'key',
-  users:    '++id,email,name,role,status,passwordHash'
+  users:    '++id,email,name,role,status,pi'
 });
 db.version(3).stores({
   projects: 'id,name,pi,students,animals,status',
@@ -32,27 +37,84 @@ db.version(3).stores({
   breeding: 'id,species,male,female,cageId,startDate,expected,status,litterSize,litterIds',
   reports:  '++id,type,project,approval,dateOfApproval,validUntil,status',
   meta:     'key',
-  users:    '++id,email,name,role,status,passwordHash'
+  users:    '++id,email,name,role,status,pi'
+});
+db.version(4).stores({
+  projects: 'id,name,pi,students,animals,status',
+  tasks:    '++id,task,type,priority,assignedTo,dueDate,status',
+  animals:  'id,species,age,gender,project,status,details',
+  breeding: 'id,species,male,female,cageId,startDate,expected,status,litterSize,litterIds',
+  reports:  '++id,type,project,approval,dateOfApproval,validUntil,status',
+  meta:     'key',
+  users:    '++id,email,name,role,status,pi'
 });
 
-// ── Password hashing (SHA-256 via SubtleCrypto) ───────────────
-async function hashPassword(password) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0')).join('');
+const API_BASE = '';
+
+function getAuthHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  const token = authToken || localStorage.getItem(AUTH_TOKEN_KEY);
+  if (token) headers.Authorization = 'Bearer ' + token;
+  return headers;
+}
+
+async function saveSession(token, user, name, role) {
+  authToken = token;
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
+  localStorage.setItem('cafmCurrentUser', user);
+  localStorage.setItem('cafmCurrentUserName', name);
+  localStorage.setItem('cafmCurrentRole', role);
+}
+
+async function restoreSession() {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  const user = localStorage.getItem('cafmCurrentUser');
+  const name = localStorage.getItem('cafmCurrentUserName');
+  const role = localStorage.getItem('cafmCurrentRole');
+  authToken = token;
+  return { token, user, name, role };
+}
+
+async function clearSession() {
+  authToken = null;
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem('cafmCurrentUser');
+  localStorage.removeItem('cafmCurrentUserName');
+  localStorage.removeItem('cafmCurrentRole');
+}
+
+async function apiFetch(path, options = {}) {
+  const opts = { headers: getAuthHeaders(), ...options };
+  if (opts.body && typeof opts.body !== 'string') {
+    opts.body = JSON.stringify(opts.body);
+  }
+  return fetch(API_BASE + path, opts);
 }
 
 // ── Page navigation helpers ───────────────────────────────────
 function showLoginPage() {
   document.getElementById('adminSetupPage').style.display = 'none';
   document.getElementById('signupPage').style.display     = 'none';
+  document.getElementById('recoveryPage').style.display   = 'none';
   document.getElementById('loginPage').style.display      = 'flex';
 }
 function showSignupPage() {
-  document.getElementById('loginPage').style.display  = 'none';
-  document.getElementById('signupPage').style.display = 'flex';
+  document.getElementById('loginPage').style.display    = 'none';
+  document.getElementById('recoveryPage').style.display = 'none';
+  document.getElementById('resetPasswordPage').style.display = 'none';
+  document.getElementById('signupPage').style.display   = 'flex';
+}
+function showRecoveryPage() {
+  document.getElementById('loginPage').style.display    = 'none';
+  document.getElementById('signupPage').style.display   = 'none';
+  document.getElementById('resetPasswordPage').style.display = 'none';
+  document.getElementById('recoveryPage').style.display = 'flex';
+}
+function showResetPasswordPage() {
+  document.getElementById('loginPage').style.display        = 'none';
+  document.getElementById('signupPage').style.display       = 'none';
+  document.getElementById('recoveryPage').style.display     = 'none';
+  document.getElementById('resetPasswordPage').style.display = 'flex';
 }
 
 // ── Toast Notifications ───────────────────────────────────────
@@ -125,99 +187,138 @@ async function seedIfEmpty(initial) {
 }
 
 // ── Session ───────────────────────────────────────────────────
-async function saveSession(user, role) {
-  await db.meta.put({ key: 'currentUser', value: user });
-  await db.meta.put({ key: 'currentRole', value: role });
+async function saveSession(token, user, name, role) {
+  await saveSessionData(token, user, name, role);
+}
+async function saveSessionData(token, user, name, role) {
+  authToken = token;
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
+  localStorage.setItem('cafmCurrentUser', user);
+  localStorage.setItem('cafmCurrentUserName', name);
+  localStorage.setItem('cafmCurrentRole', role);
 }
 async function restoreSession() {
-  const [u, r] = await Promise.all([db.meta.get('currentUser'), db.meta.get('currentRole')]);
-  return { user: u?.value || null, role: r?.value || null };
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  const user = localStorage.getItem('cafmCurrentUser');
+  const name = localStorage.getItem('cafmCurrentUserName');
+  const role = localStorage.getItem('cafmCurrentRole');
+  authToken = token;
+  return { token, user, name, role };
 }
 
 // ── Init ──────────────────────────────────────────────────────
 (async function initApp() {
+  console.log('initApp started');
   await seedIfEmpty(sampleData);
   SHEETS_SYNC.init();
 
-  const adminCount = await db.users.where('role').equals('admin').count();
-  if (adminCount === 0) {
+  // Check for reset token in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const resetToken = urlParams.get('resetToken');
+  if (resetToken) {
+    document.getElementById('resetToken').value = resetToken;
+    showResetPasswordPage();
+    return;
+  }
+
+  let adminExists = true;
+  try {
+    const resp = await fetch('/auth/admin-exists');
+    const json = await resp.json();
+    adminExists = json.hasAdmin;
+  } catch (err) {
+    console.warn('Unable to validate admin existence:', err);
+  }
+
+  if (!adminExists) {
     document.getElementById('adminSetupPage').style.display = 'flex';
     return;
   }
 
-  const { user, role } = await restoreSession();
-  if (user && role) {
-    currentUser = user;
-    currentRole = role;
-    _showDashboard(user, role);
-    await loadDashboard();
-  } else {
-    document.getElementById('loginPage').style.display = 'flex';
+  const { token, user, name, role } = await restoreSession();
+  if (token && user && role) {
+    const authResp = await apiFetch('/auth/me');
+    if (authResp.ok) {
+      currentUser = user;
+      currentUserName = name;
+      currentRole = role;
+      _showDashboard(user, role);
+      await loadDashboard();
+      return;
+    }
+    await clearSession();
   }
+
+  document.getElementById('loginPage').style.display = 'flex';
 })();
 
 function _showDashboard(user, role) {
   document.getElementById('loginPage').style.display      = 'none';
   document.getElementById('signupPage').style.display     = 'none';
   document.getElementById('adminSetupPage').style.display = 'none';
+  document.getElementById('recoveryPage').style.display   = 'none';
   document.getElementById('dashboard').classList.add('active');
   document.getElementById('userDisplay').textContent = `${role.toUpperCase()}: ${user}`;
   const umItem = document.getElementById('userMgmtSidebarItem');
   if (umItem) umItem.style.display = role === 'admin' ? 'flex' : 'none';
+  const addProjectBtn = document.getElementById('addProjectBtn');
+  if (addProjectBtn) addProjectBtn.style.display = (role === 'admin' || role === 'pi') ? 'inline-block' : 'none';
+  const addReportBtn = document.getElementById('addReportBtn');
+  if (addReportBtn) addReportBtn.style.display = (role === 'admin' || role === 'pi') ? 'inline-block' : 'none';
+  const addTaskBtn = document.getElementById('addTaskBtn');
+  if (addTaskBtn) addTaskBtn.style.display = (role === 'admin' || role === 'pi') ? 'inline-block' : 'none';
+  const addBreedingBtn = document.getElementById('addBreedingBtn');
+  if (addBreedingBtn) addBreedingBtn.style.display = (role === 'admin' || role === 'pi') ? 'inline-block' : 'none';
 }
 
 async function createAdminAccount(email, name, password) {
-  const passwordHash = await hashPassword(password);
-  await db.users.add({
-    email: email.toLowerCase(),
-    name,
-    role: 'admin',
-    status: 'approved',
-    passwordHash,
-    createdAt: nowISO(),
-    requestedAt: nowISO()
+  await apiFetch('/auth/setup', {
+    method: 'POST',
+    body: { email: email.toLowerCase(), name, password }
   });
 }
 
-async function addSignupRequest(email, name, role, password) {
-  const passwordHash = await hashPassword(password);
-  await db.users.add({
-    email: email.toLowerCase(),
-    name,
-    role,
-    status: 'pending',
-    passwordHash,
-    createdAt: nowISO(),
-    requestedAt: nowISO()
+async function addSignupRequest(email, name, role, password, pi = null) {
+  const resp = await apiFetch('/auth/signup', {
+    method: 'POST',
+    body: { email: email.toLowerCase(), name, role, password, pi }
   });
-  await sendSignupNotificationEmails(email, name, role);
-}
-
-async function sendSignupNotificationEmails(userEmail, userName, role) {
-  const admin = await db.users.where('role').equals('admin').first();
-  if (!admin?.email) return;
-  const subject = encodeURIComponent('CAFm signup request received');
-  const body = encodeURIComponent(`Hello ${userName},\n\nYour signup request for CAFm as ${role} has been received and is pending admin approval. You will be notified once it is approved.\n\nThis message is sent from no-reply@niper.ac.in. Please do not reply to this email.\n\nBest regards,\nCAFm Team`);
-  const mailto = `mailto:${admin.email}?cc=${encodeURIComponent(userEmail)}&subject=${subject}&body=${body}&from=no-reply@niper.ac.in`;
-  window.open(mailto, '_blank');
+  const json = await resp.json();
+  if (!resp.ok) {
+    throw new Error(json.message || 'Signup request failed.');
+  }
 }
 
 async function loadUserManagement() {
   const tbody = document.querySelector('#userManagementTable tbody');
   if (!tbody) return;
 
-  const allUsers = await db.users.toArray();
+  const resp = await apiFetch('/auth/users');
+  const json = await resp.json();
+  if (!resp.ok) {
+    showToast(json.message || 'Unable to load user management.', 'error');
+    return;
+  }
+
   tbody.innerHTML = '';
-  allUsers.forEach(u => {
+  json.users.forEach(u => {
+    const pendingActions = u.status === 'pending'
+      ? '<button class="btn-small" onclick="approveUser(' + u.id + ')"><i class="fa-solid fa-check"></i> Approve</button> <button class="btn-small btn-danger" onclick="rejectUser(' + u.id + ')"><i class="fa-solid fa-xmark"></i> Reject</button>'
+      : '';
+    const deleteAction = u.role !== 'admin'
+      ? '<button class="btn-small btn-danger" onclick="deleteUser(' + u.id + ')"><i class="fa-solid fa-trash"></i> Remove</button>'
+      : '';
+
     tbody.innerHTML += `
       <tr>
         <td>${u.email}</td>
         <td>${u.name || '—'}</td>
         <td>${u.role}</td>
         <td><span class="badge badge-${u.status === 'approved' ? 'alive' : u.status === 'pending' ? 'experiment' : 'terminated'}">${u.status}</span></td>
-        <td>${fmtTs(u.requestedAt)}</td>
+        <td>${fmtTs(u.createdAt)}</td>
         <td>
-          ${u.status === 'pending' ? `<button class="btn-small" onclick="approveUser(${u.id})"><i class="fa-solid fa-check"></i> Approve</button> <button class="btn-small btn-danger" onclick="rejectUser(${u.id})"><i class="fa-solid fa-xmark"></i> Reject</button>` : ''}
+          ${pendingActions}
+          ${deleteAction}
         </td>
       </tr>`;
   });
@@ -298,14 +399,36 @@ function applyTableFilters(tableId) {
 }
 
 window.approveUser = async function (id) {
-  await db.users.update(id, { status: 'approved' });
+  const resp = await apiFetch(`/auth/users/${id}/approve`, { method: 'POST' });
+  const json = await resp.json();
+  if (!resp.ok) {
+    showToast(json.message || 'Approval failed.', 'error');
+    return;
+  }
   showToast('User approved.', 'success');
   await loadUserManagement();
 };
 
 window.rejectUser = async function (id) {
-  await db.users.update(id, { status: 'rejected' });
+  const resp = await apiFetch(`/auth/users/${id}/reject`, { method: 'POST' });
+  const json = await resp.json();
+  if (!resp.ok) {
+    showToast(json.message || 'Reject failed.', 'error');
+    return;
+  }
   showToast('User rejected.', 'warning');
+  await loadUserManagement();
+};
+
+window.deleteUser = async function (id) {
+  if (!confirm('Remove this user permanently?')) return;
+  const resp = await apiFetch(`/auth/users/${id}/delete`, { method: 'POST' });
+  const json = await resp.json();
+  if (!resp.ok) {
+    showToast(json.message || 'Delete failed.', 'error');
+    return;
+  }
+  showToast('User removed.', 'success');
   await loadUserManagement();
 };
 
@@ -325,32 +448,21 @@ document.getElementById('loginForm').addEventListener('submit', async function (
     return;
   }
 
-  const user = await db.users.where({ email, role }).first();
-  if (!user) {
-    showToast('No account found for these credentials.', 'error');
+  const resp = await apiFetch('/auth/login', {
+    method: 'POST',
+    body: { email, password, role }
+  });
+  const json = await resp.json();
+  if (!resp.ok) {
+    showToast(json.message || 'Invalid credentials.', 'error');
     return;
   }
 
-  if (user.status === 'pending') {
-    showToast('Account awaiting admin approval.', 'warning');
-    return;
-  }
-
-  if (user.status === 'rejected') {
-    showToast('Your request was rejected. Contact admin.', 'error');
-    return;
-  }
-
-  const passwordHash = await hashPassword(password);
-  if (user.passwordHash !== passwordHash) {
-    showToast('Invalid credentials. Please try again.', 'error');
-    return;
-  }
-
-  currentUser = user.email;
-  currentRole = user.role;
-  await saveSession(currentUser, currentRole);
-  _showDashboard(user.email, user.role);
+  currentUser = json.email;
+  currentUserName = json.name;
+  currentRole = json.role;
+  await saveSession(json.token, currentUser, currentUserName, currentRole);
+  _showDashboard(currentUser, currentRole);
   updateLoginUIAfterAuth();
   await loadDashboard();
 });
@@ -361,8 +473,76 @@ document.getElementById('showSignupLink').addEventListener('click', (e) => {
   showSignupPage();
 });
 
+document.getElementById('showRecoveryLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  showRecoveryPage();
+});
+
 document.getElementById('backToLoginLink').addEventListener('click', (e) => {
   e.preventDefault();
+  showLoginPage();
+});
+
+document.getElementById('backToLoginFromRecoveryLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  showLoginPage();
+});
+
+document.getElementById('backToLoginFromResetLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  showLoginPage();
+});
+
+document.getElementById('passwordRecoveryForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const role  = document.getElementById('recoveryRole').value;
+  const email = document.getElementById('recoveryEmail').value.trim().toLowerCase();
+  if (!role || !email) {
+    showToast('Please select your role and enter your email.', 'warning');
+    return;
+  }
+
+  const resp = await apiFetch('/auth/recover', {
+    method: 'POST',
+    body: { email, role }
+  });
+  const json = await resp.json();
+  if (!resp.ok) {
+    showToast(json.message || 'Recovery request failed.', 'error');
+    return;
+  }
+
+  showToast('Password reset link sent. Check your inbox.', 'success');
+  document.getElementById('passwordRecoveryForm').reset();
+  showLoginPage();
+});
+
+document.getElementById('resetPasswordForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const token = document.getElementById('resetToken').value;
+  const password = document.getElementById('resetPassword').value;
+  const passwordConfirm = document.getElementById('resetPasswordConfirm').value;
+  if (!token || !password || !passwordConfirm) {
+    showToast('Please enter and confirm your new password.', 'warning');
+    return;
+  }
+  if (password !== passwordConfirm) {
+    showToast('Passwords do not match.', 'error');
+    return;
+  }
+
+  const resp = await apiFetch('/auth/reset', {
+    method: 'POST',
+    body: { token, password }
+  });
+  const json = await resp.json();
+  if (!resp.ok) {
+    showToast(json.message || 'Password reset failed.', 'error');
+    return;
+  }
+
+  showToast('Password has been reset. Please login.', 'success');
+  document.getElementById('resetPasswordForm').reset();
   showLoginPage();
 });
 
@@ -382,17 +562,39 @@ document.getElementById('adminSetupForm').addEventListener('submit', async funct
     return;
   }
 
-  const existing = await db.users.where('email').equals(email).first();
-  if (existing) {
-    showToast('An account already exists with this email.', 'error');
+  const resp = await apiFetch('/auth/setup', {
+    method: 'POST',
+    body: { email, name, password }
+  });
+  const json = await resp.json();
+  if (!resp.ok) {
+    showToast(json.message || 'Unable to create admin account.', 'error');
     return;
   }
 
-  await createAdminAccount(email, name, password);
   showToast('Admin account created. Please login.', 'success');
   document.getElementById('adminSetupForm').reset();
   showLoginPage();
 });
+
+document.getElementById('signupRole').addEventListener('change', function() {
+  const role = this.value;
+  const piGroup = document.getElementById('piGroup');
+  if (role === 'student') {
+    populateSignupPI();
+    piGroup.style.display = 'block';
+  } else {
+    piGroup.style.display = 'none';
+  }
+});
+
+async function populateSignupPI() {
+  const resp = await fetch('/auth/public-users?role=pi');
+  const json = await resp.json();
+  const pis = json.users || [];
+  const piSelect = document.getElementById('signupPI');
+  piSelect.innerHTML = '<option value="">Select PI</option>' + pis.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
+}
 
 document.getElementById('signupForm').addEventListener('submit', async function (e) {
   e.preventDefault();
@@ -401,6 +603,15 @@ document.getElementById('signupForm').addEventListener('submit', async function 
   const role            = document.getElementById('signupRole').value;
   const password        = document.getElementById('signupPassword').value;
   const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
+
+  let pi = null;
+  if (role === 'student') {
+    pi = document.getElementById('signupPI').value;
+    if (!pi) {
+      showToast('Please select an associated PI.', 'warning');
+      return;
+    }
+  }
 
   if (!email || !name || !role || !password || !passwordConfirm) {
     showToast('Fill all fields.', 'warning');
@@ -411,13 +622,16 @@ document.getElementById('signupForm').addEventListener('submit', async function 
     return;
   }
 
-  const existing = await db.users.where('email').equals(email).first();
-  if (existing) {
-    showToast('An account already exists with this email.', 'error');
+  const resp = await apiFetch('/auth/signup', {
+    method: 'POST',
+    body: { email, name, role, password, pi }
+  });
+  const json = await resp.json();
+  if (!resp.ok) {
+    showToast(json.message || 'Signup request failed.', 'error');
     return;
   }
 
-  await addSignupRequest(email, name, role, password);
   showToast('Signup request submitted. Await admin approval.', 'success');
   document.getElementById('signupForm').reset();
   showLoginPage();
@@ -435,10 +649,11 @@ window.showTab = (function (orig) {
 
 
 async function logout() {
+  await apiFetch('/auth/logout', { method: 'POST' });
   currentUser = null;
+  currentUserName = null;
   currentRole = null;
-  await db.meta.delete('currentUser');
-  await db.meta.delete('currentRole');
+  await clearSession();
   document.getElementById('dashboard').classList.remove('active');
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('loginForm').reset();
@@ -467,13 +682,58 @@ function showTab(tabName, el) {
 }
 
 // ── Role filtering ────────────────────────────────────────────
-function filterByRole(arr) {
-  if (currentRole === 'admin') return arr;
-  if (currentRole === 'pi')
-    return arr.filter(item => item.pi === currentUser || item.pi?.includes(currentUser));
-  if (currentRole === 'student')
-    return arr.filter(item => item.students && item.students.includes(currentUser));
-  return arr;
+function matchCurrentUser(value) {
+  if (!value) return false;
+  const normalized = String(value).toLowerCase();
+  const email = String(currentUser || '').toLowerCase();
+  const name = String(currentUserName || '').toLowerCase();
+  return normalized === email || normalized === name || normalized.includes(email) || (name && normalized.includes(name));
+}
+
+function matchesAnyCurrentUser(values) {
+  if (!values) return false;
+  return values.split(',').some(v => matchCurrentUser(v.trim()));
+}
+
+function filterProjectsByRole(projects) {
+  if (currentRole === 'admin') return projects;
+  if (currentRole === 'pi') {
+    return projects.filter(p => matchCurrentUser(p.pi));
+  }
+  if (currentRole === 'student') {
+    return projects.filter(p => matchesAnyCurrentUser(p.students));
+  }
+  return projects;
+}
+
+function filterTasksByRole(tasks, projects) {
+  if (currentRole === 'admin') return tasks;
+  if (currentRole === 'pi') {
+    // PI sees tasks assigned to themselves or their students
+    const piProjects = filterProjectsByRole(projects);
+    const students = new Set();
+    piProjects.forEach(p => {
+      if (p.students) p.students.split(',').forEach(s => students.add(s.trim()));
+    });
+    return tasks.filter(t => t.assignedTo === currentUser || students.has(t.assignedTo));
+  }
+  if (currentRole === 'student') return tasks.filter(t => t.assignedTo === currentUser);
+  return tasks;
+}
+
+function filterAnimalsByRole(animals, projects) {
+  const allowedProjects = filterProjectsByRole(projects).map(p => p.id);
+  return animals.filter(a => allowedProjects.includes(a.project));
+}
+
+function filterBreedingByRole(breeding, animals, projects) {
+  const allowedAnimals = filterAnimalsByRole(animals, projects).map(a => a.id);
+  return breeding.filter(b => allowedAnimals.includes(b.male) || allowedAnimals.includes(b.female));
+}
+
+function filterReportsByRole(reports) {
+  // All can see, but add permission for adding
+  return reports;
 }
 
 // ── Dashboard loader ──────────────────────────────────────────
@@ -483,25 +743,32 @@ async function loadDashboard() {
     db.breeding.toArray(), db.reports.toArray()
   ]);
 
-  document.getElementById('totalProjects').textContent   = projects.length;
-  document.getElementById('animalsAssigned').textContent = animals.filter(a => a.project).length;
-  document.getElementById('usedAnimals').textContent     = animals.filter(a => ['In Experiment','Terminated','Breeding'].includes(a.status)).length;
-  document.getElementById('completedAnimals').textContent= animals.filter(a => a.status === 'Completed').length;
+  // Apply role-based filtering
+  const filteredProjects = filterProjectsByRole(projects);
+  const filteredAnimals = filterAnimalsByRole(animals, projects);
+  const filteredTasks = filterTasksByRole(tasks, projects);
+  const filteredBreeding = filterBreedingByRole(breeding, animals, projects);
+  const filteredReports = filterReportsByRole(reports);
 
-  loadProjectOverview(projects, animals);
-  loadTasks(tasks);
-  loadAnimals(animals);
-  loadBreeding(breeding);
-  loadReports(reports);
-  populateProjectOptions(projects);
+  // Update dashboard stats based on filtered data
+  document.getElementById('totalProjects').textContent   = filteredProjects.length;
+  document.getElementById('animalsAssigned').textContent = filteredAnimals.filter(a => a.project).length;
+  document.getElementById('usedAnimals').textContent     = filteredAnimals.filter(a => ['In Experiment','Terminated','Breeding'].includes(a.status)).length;
+  document.getElementById('completedAnimals').textContent= filteredAnimals.filter(a => a.status === 'Completed').length;
+
+  loadProjectOverview(filteredProjects, filteredAnimals);
+  loadTasks(filteredTasks);
+  loadAnimals(filteredAnimals);
+  loadBreeding(filteredBreeding);
+  loadReports(filteredReports);
+  populateProjectOptions(filteredProjects);
 }
 
 // ── Table renderers ───────────────────────────────────────────
 function loadProjectOverview(projectsArr, animalsArr) {
   const tbody = document.querySelector('#projectOverviewTable tbody');
-  const rows = filterByRole(projectsArr);
   tbody.innerHTML = '';
-  rows.forEach(p => {
+  projectsArr.forEach(p => {
     const assigned = animalsArr.filter(a => a.project === p.id).length;
     const inUse = animalsArr.filter(a => a.project === p.id && (a.status === 'In Experiment' || a.status === 'Terminated')).length;
     tbody.innerHTML += `
@@ -569,7 +836,7 @@ function loadAnimals(animalsArr) {
     const cls = badgeMap[statusValue] || 'badge-pending';
     const detailParts = [];
     if (statusValue === 'Terminated') {
-      detailParts.push(`Terminated${a.terminationReason ? `: ${a.terminationReason}` : ''}`);
+      detailParts.push(`Terminated${a.terminationReason ? ': ' + a.terminationReason : ''}`);
       if (a.terminatedAt) detailParts.push(`on ${a.terminatedAt.slice(0, 10)}`);
     }
     if (statusValue === 'Completed') {
@@ -641,8 +908,6 @@ function loadReports(reportsArr) {
   const tbody = document.querySelector('#reportsTable tbody');
   tbody.innerHTML = '';
   reportsArr.forEach(r => {
-    const cls = r.status === 'Approved' ? 'badge-alive' :
-                r.status === 'Submitted' ? 'badge-experiment' : 'badge-pending';
     tbody.innerHTML += `
       <tr>
         <td>${r.type}</td>
@@ -650,7 +915,6 @@ function loadReports(reportsArr) {
         <td>${r.approval}</td>
         <td>${r.dateOfApproval || '—'}</td>
         <td>${r.validUntil || '—'}</td>
-        <td><span class="badge ${cls}">${r.status}</span></td>
         <td class="ts-cell">${fmtTs(r.createdAt)}</td>
       </tr>`;
   });
@@ -768,7 +1032,7 @@ async function downloadCsv(tableKey) {
 // ── Modal helpers ─────────────────────────────────────────────
 function openTaskModal() { document.getElementById('taskModal').classList.add('active'); }
 
-function openAnimalModal() {
+async function openAnimalModal() {
   document.getElementById('animalIdField').value    = '';
   document.getElementById('animalCreatedAt').value  = '';
   document.getElementById('animalModalTitle').innerHTML =
@@ -780,6 +1044,7 @@ function openAnimalModal() {
   document.getElementById('terminationDetails').style.display = 'none';
   document.getElementById('completionDetails').style.display = 'none';
   document.getElementById('animalStatus').disabled = false;
+  await populateAnimalProjectOptions();
   document.getElementById('animalModal').classList.add('active');
 }
 
@@ -804,10 +1069,17 @@ async function populateBreedingAnimalOptions() {
   const femaleAnimals = animals.filter(a => a.gender === 'Female');
 
   maleSelect.innerHTML = '<option value="">Select male animal</option>' +
-    maleAnimals.map(a => `<option value="${a.id}">${a.id} — ${a.species}${a.project ? ` | ${a.project}` : ''}${a.status ? ` | ${a.status}` : ''}</option>`).join('');
-  femaleSelect.innerHTML = '<option value="">Select female animal</option>' +
-    femaleAnimals.map(a => `<option value="${a.id}">${a.id} — ${a.species}${a.project ? ` | ${a.project}` : ''}${a.status ? ` | ${a.status}` : ''}</option>`).join('');
-
+      maleAnimals.map(a => {
+        const projectLabel = a.project ? ' | ' + a.project : '';
+        const statusLabel = a.status ? ' | ' + a.status : '';
+        return `<option value="${a.id}">${a.id} — ${a.species}${projectLabel}${statusLabel}</option>`;
+      }).join('');
+    femaleSelect.innerHTML = '<option value="">Select female animal</option>' +
+      femaleAnimals.map(a => {
+        const projectLabel = a.project ? ' | ' + a.project : '';
+        const statusLabel = a.status ? ' | ' + a.status : '';
+        return `<option value="${a.id}">${a.id} — ${a.species}${projectLabel}${statusLabel}</option>`;
+      }).join('');
   if (maleAnimals.length === 0 || femaleAnimals.length === 0) {
     showToast('Please add male and/or female animals in Animal Details before creating a breeding pair.', 'warning');
   }
@@ -836,9 +1108,50 @@ async function openBreedingModal() {
   await populateBreedingAnimalOptions();
   document.getElementById('breedingModal').classList.add('active');
 }
-function openReportModal()   { document.getElementById('reportModal').classList.add('active'); }
+async function openReportModal() {
+  await populateReportProjectOptions();
+  document.getElementById('reportModal').classList.add('active');
+}
 
-function openProjectModal() {
+async function populateProjectUserOptions() {
+  const piSelect = document.getElementById('projectPiSelect');
+  const studentsSelect = document.getElementById('projectStudentsSelect');
+  if (!piSelect || !studentsSelect) return;
+
+  const piResp = await fetch('/auth/public-users?role=pi');
+  const piJson = await piResp.json();
+  const pis = piJson.users || [];
+
+  const studentResp = await fetch('/auth/public-users?role=student');
+  const studentJson = await studentResp.json();
+  let students = studentJson.users || [];
+
+  if (currentRole === 'pi') {
+    students = students.filter(s => s.pi === currentUserName || s.pi === currentUser);
+  }
+
+  piSelect.innerHTML = ['<option value="">Select PI</option>']
+    .concat(pis.map(u => `<option value="${u.name}">${u.name}</option>`))
+    .join('');
+
+  studentsSelect.innerHTML = '<option value="" disabled>Select student(s)</option>' + students.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
+}
+
+async function populateReportProjectOptions() {
+  const projects = await db.projects.toArray();
+  const filteredProjects = filterProjectsByRole(projects);
+  const select = document.getElementById('reportProjectSelect');
+  select.innerHTML = '<option value="">Select Project</option>' + filteredProjects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+}
+
+async function populateAnimalProjectOptions() {
+  const projects = await db.projects.toArray();
+  const filteredProjects = filterProjectsByRole(projects);
+  const select = document.getElementById('animalProjectSelect');
+  select.innerHTML = '<option value="">Select Project</option>' + filteredProjects.map(p => `<option value="${p.id}">${p.id}</option>`).join('');
+}
+
+async function openProjectModal() {
   if (currentRole !== 'admin' && currentRole !== 'pi') {
     showToast('Only Admin and PI can create projects.', 'warning');
     return;
@@ -850,6 +1163,11 @@ function openProjectModal() {
   document.getElementById('projectSubmitBtn').innerHTML =
     '<i class="fa-solid fa-floppy-disk"></i> Save Project';
   document.getElementById('projectForm').reset();
+  await populateProjectUserOptions();
+  if (currentRole === 'pi') {
+    const piInput = document.getElementById('projectPiSelect');
+    if (piInput) piInput.value = currentUserName || currentUser;
+  }
   document.getElementById('projectModal').classList.add('active');
 }
 
@@ -920,6 +1238,8 @@ async function editAnimal(animalId) {
 
   const form = document.getElementById('animalForm');
   form.reset();
+
+  await populateAnimalProjectOptions();
 
   document.getElementById('animalIdField').value   = animal.id;
   document.getElementById('animalCreatedAt').value = animal.createdAt || '';
@@ -1191,7 +1511,18 @@ const formHandlers = {
   },
 
   projectForm: async (form) => {
-    const data = Object.fromEntries(new FormData(form).entries());
+    const formData = new FormData(form);
+    const data = {};
+    for (const [key, value] of formData.entries()) {
+      if (key === 'students') {
+        data.students = data.students ? [...data.students, value] : [value];
+      } else {
+        data[key] = value;
+      }
+    }
+    if (Array.isArray(data.students)) {
+      data.students = data.students.filter(v => v).join(', ');
+    }
     data.animals   = Number(data.animals ?? 0);
     data.status    = data.status || 'Active';
     data.updatedAt = nowISO();

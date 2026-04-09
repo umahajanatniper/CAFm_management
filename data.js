@@ -14,16 +14,15 @@ const sampleData = {
     { task: 'Maintenance - HVAC System', type: 'Maintenance', assignedTo: 'Admin', dueDate: '2025-10-16', status: 'In Progress' }
   ],
   animals: [
-    { id: 'A001', species: 'Rat', age: 12, gender: 'Male', project: 'P001', status: 'Alive', details: '-' },
-    { id: 'A002', species: 'Mouse', age: 8, gender: 'Female', project: 'P002', status: 'In Experiment', details: '-' },
-    { id: 'A003', species: 'Guinea Pig', age: 16, gender: 'Male', project: 'P003', status: 'Completed', details: 'Blood, Tissue' }
+    { id: '00001', species: 'Rat', age: 12, gender: 'Male', project: 'P001', status: 'Alive', details: '-' },
+    { id: '00002', species: 'Mouse', age: 8, gender: 'Female', project: 'P002', status: 'In Experiment', details: '-' },
+    { id: '00003', species: 'Guinea Pig', age: 16, gender: 'Male', project: 'P003', status: 'Completed', details: 'Blood, Tissue' }
   ],
   breeding: [
-    { id: 'B001', species: 'Rat', male: 'A001', female: 'A004', startDate: '2025-09-01', expected: '2025-10-20', status: 'Active' },
-    { id: 'B002', species: 'Mouse', male: 'A002', female: 'A005', startDate: '2025-09-15', expected: '2025-11-05', status: 'Active' }
+    { id: 'B001', species: 'Rat', male: '00001', female: '00004', startDate: '2025-09-01', expected: '2025-10-20', status: 'Active' },
+    { id: 'B002', species: 'Mouse', male: '00002', female: '00005', startDate: '2025-09-15', expected: '2025-11-05', status: 'Active' }
   ],
   reports: [
     { type: 'Ethical Approval', project: 'P001', approval: 'EA-2025-001', validUntil: '2026-10-13', status: 'Approved' },
-    { type: 'Progress Report', project: 'P002', approval: 'PR-2025-002', validUntil: '2025-12-31', status: 'Submitted' }
   ]
 };

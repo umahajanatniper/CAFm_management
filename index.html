@@ -72,6 +72,12 @@
             <option value="student">Student</option>
           </select>
         </div>
+        <div class="form-group" id="piGroup" style="display:none;">
+          <label for="signupPI"><i class="fa-solid fa-user-tie"></i> Associated PI</label>
+          <select id="signupPI" name="signupPI">
+            <option value="">Select PI</option>
+          </select>
+        </div>
         <div class="form-group">
           <label for="signupPassword"><i class="fa-solid fa-lock"></i> Password</label>
           <input type="password" id="signupPassword" name="signupPassword" placeholder="Enter password" required />
@@ -121,7 +127,64 @@
       <p style="margin-top: 12px; text-align: center; color: var(--text-muted);">
         New user? <a href="#" id="showSignupLink">Create an account</a>
       </p>
+      <p style="margin-top: 8px; text-align: center; color: var(--text-muted);">
+        <a href="#" id="showRecoveryLink">Forgot password?</a>
+      </p>
 
+    </div>
+  </div>
+
+  <!-- ===================== PASSWORD RECOVERY PAGE ===================== -->
+  <div id="recoveryPage" class="login-container" style="display:none;">
+    <div class="login-box">
+      <h1 class="title">
+        <span class="title-brand">CAFm</span>
+        <span class="title-sub">Password Recovery</span>
+      </h1>
+      <form id="passwordRecoveryForm">
+        <div class="form-group">
+          <label for="recoveryRole"><i class="fa-solid fa-user-shield"></i> Role</label>
+          <select id="recoveryRole" name="recoveryRole" required>
+            <option value="">Select Role</option>
+            <option value="admin">Admin</option>
+            <option value="pi">Principal Investigator (PI)</option>
+            <option value="student">Student</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="recoveryEmail"><i class="fa-solid fa-envelope"></i> Email</label>
+          <input type="email" id="recoveryEmail" name="recoveryEmail" placeholder="Enter your email" required />
+        </div>
+        <button type="submit" class="btn"><i class="fa-solid fa-envelope-circle-check"></i> Send Recovery Email</button>
+      </form>
+      <p style="margin-top: 14px; text-align: center; color: var(--text-muted);">
+        Remembered your password? <a href="#" id="backToLoginFromRecoveryLink">Login</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- ===================== RESET PASSWORD PAGE ===================== -->
+  <div id="resetPasswordPage" class="login-container" style="display:none;">
+    <div class="login-box">
+      <h1 class="title">
+        <span class="title-brand">CAFm</span>
+        <span class="title-sub">Reset Password</span>
+      </h1>
+      <form id="resetPasswordForm">
+        <input type="hidden" id="resetToken" name="resetToken" />
+        <div class="form-group">
+          <label for="resetPassword"><i class="fa-solid fa-lock"></i> New Password</label>
+          <input type="password" id="resetPassword" name="resetPassword" placeholder="Enter new password" required />
+        </div>
+        <div class="form-group">
+          <label for="resetPasswordConfirm"><i class="fa-solid fa-lock"></i> Confirm Password</label>
+          <input type="password" id="resetPasswordConfirm" name="resetPasswordConfirm" placeholder="Confirm new password" required />
+        </div>
+        <button type="submit" class="btn"><i class="fa-solid fa-key"></i> Reset Password</button>
+      </form>
+      <p style="margin-top: 14px; text-align: center; color: var(--text-muted);">
+        Back to <a href="#" id="backToLoginFromResetLink">Login</a>
+      </p>
     </div>
   </div>
 
@@ -178,6 +241,9 @@
         <div id="overview" class="tab-content active">
           <div class="tab-header">
             <h2><i class="fa-solid fa-gauge-high"></i> Overview Dashboard</h2>
+            <button id="addProjectBtn" class="btn-add" onclick="openProjectModal()" style="display:none;">
+              <i class="fa-solid fa-plus"></i> Add New Project
+            </button>
           </div>
           <div class="stats-grid">
             <div class="stat-card">
@@ -241,7 +307,7 @@
         <div id="tasks" class="tab-content">
           <div class="tab-header">
             <h2><i class="fa-solid fa-list-check"></i> To-Do Tasks</h2>
-            <button class="btn-add" onclick="openTaskModal()">
+            <button id="addTaskBtn" class="btn-add" onclick="openTaskModal()">
               <i class="fa-solid fa-plus"></i> Add New Task
             </button>
           </div>
@@ -283,7 +349,7 @@
         <div id="animals" class="tab-content">
           <div class="tab-header">
             <h2><i class="fa-solid fa-paw"></i> Animal Details</h2>
-            <button class="btn-add" onclick="openAnimalModal()">
+            <button class="btn-add" onclick="(async () => await openAnimalModal())()">
               <i class="fa-solid fa-plus"></i> Add New Animal
             </button>
           </div>
@@ -335,7 +401,7 @@
         <div id="breeding" class="tab-content">
           <div class="tab-header">
             <h2><i class="fa-solid fa-dna"></i> Breeding Strategy</h2>
-            <button class="btn-add" onclick="openBreedingModal()">
+            <button id="addBreedingBtn" class="btn-add" onclick="openBreedingModal()">
               <i class="fa-solid fa-plus"></i> Add Breeding Pair
             </button>
           </div>
@@ -380,7 +446,7 @@
         <div id="reports" class="tab-content">
           <div class="tab-header">
             <h2><i class="fa-solid fa-file-shield"></i> Ethical Approvals</h2>
-            <button class="btn-add" onclick="openReportModal()">
+            <button id="addReportBtn" class="btn-add" onclick="(async () => await openReportModal())()">
               <i class="fa-solid fa-upload"></i> Upload Approval
             </button>
           </div>
@@ -394,7 +460,6 @@
                     <th>Approval No.</th>
                     <th>Date of Approval</th>
                     <th>Valid Until</th>
-                    <th>Status</th>
                     <th>Uploaded At</th>
                   </tr>
                   <tr class="filter-row">
@@ -404,7 +469,6 @@
                     <th><input class="column-filter" data-col-index="3" type="text" placeholder="Filter" /></th>
                     <th><input class="column-filter" data-col-index="4" type="text" placeholder="Filter" /></th>
                     <th><input class="column-filter" data-col-index="5" type="text" placeholder="Filter" /></th>
-                    <th><input class="column-filter" data-col-index="6" type="text" placeholder="Filter" /></th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -740,11 +804,16 @@
           <div class="form-row">
             <div class="form-group">
               <label>Principal Investigator</label>
-              <input type="text" name="pi" placeholder="e.g. Dr. Smith" required />
+              <select id="projectPiSelect" name="pi" required>
+                <option value="">Select PI</option>
+              </select>
             </div>
             <div class="form-group">
-              <label>Students (comma-separated)</label>
-              <input type="text" name="students" placeholder="e.g. John, Jane" required />
+              <label>Students</label>
+              <select id="projectStudentsSelect" name="students" multiple size="4" required>
+                <option value="" disabled>Select student(s)</option>
+              </select>
+              <small class="helper-text">Hold Ctrl/Cmd to select multiple students.</small>
             </div>
           </div>
           <div class="form-row">
@@ -757,13 +826,19 @@
               <input type="number" name="duration" min="1" placeholder="e.g. 12" required />
             </div>
           </div>
-          <div class="form-group">
-            <label>Status</label>
-            <select name="status">
-              <option value="Active">Active</option>
-              <option value="Completed">Completed</option>
-              <option value="On Hold">On Hold</option>
-            </select>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Approved Animals</label>
+              <input type="number" name="animals" min="0" placeholder="e.g. 50" required />
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select name="status">
+                <option value="Active">Active</option>
+                <option value="Completed">Completed</option>
+                <option value="On Hold">On Hold</option>
+              </select>
+            </div>
           </div>
           <div class="form-group">
             <label>Description</label>

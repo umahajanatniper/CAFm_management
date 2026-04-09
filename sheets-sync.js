@@ -1,11 +1,11 @@
 // =============================================================
-// sheets-sync.js — Google Sheets sync via Apps Script Web App
+// sheets-sync.js — SQL database sync via local Node.js server
 // =============================================================
 //
 // HOW TO SET UP:
-//   1. Deploy your Google Apps Script as a Web App (see appscript.gs)
-//   2. Copy the deployed Web App URL
-//   3. Paste it below in DEFAULT_SCRIPT_URL, or set it at runtime with SHEETS_SYNC.setUrl(url)
+//   1. Install dependencies: npm install
+//   2. Start the server: npm start
+//   3. The server runs on http://localhost:3000/sync
 //
 // Leave DEFAULT_SCRIPT_URL as empty string '' to run fully offline (no sync).
 // =============================================================
@@ -14,7 +14,7 @@ const SHEETS_SYNC = (() => {
 
   // ── CONFIG ─────────────────────────────────────────────────
   const SYNC_URL_KEY = 'cafmSheetsSyncUrl';
-  const DEFAULT_SCRIPT_URL = '';
+  const DEFAULT_SCRIPT_URL = 'http://localhost:3000/sync';
   let scriptUrl = localStorage.getItem(SYNC_URL_KEY) || DEFAULT_SCRIPT_URL;
 
   // IndexedDB queue key stored via Dexie meta table
